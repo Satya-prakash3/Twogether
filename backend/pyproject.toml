@@ -1,0 +1,28 @@
+[tool.poetry]
+name = "streamdock"
+version = "0.1.0"
+description = "Download videos and audio from any source"
+authors = ["Satyaprakash <satyaprakashsethy905@gmail.com>"]
+readme = "README.md"
+package-mode=false
+
+[tool.poetry.dependencies]
+python = "^3.12"
+fastapi = "^0.120.3"
+uvicorn = {extras = ["standard"], version = "^0.38.0"}
+pytz = "^2025.2"
+pydantic-settings = "^2.11.0"
+
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.4.2"
+pytest-asyncio = "^1.2.0"
+httpx = "^0.28.1"
+black = "^25.9.0"
+isort = "^7.0.0"
+ruff = "^0.14.3"
+mypy = "^1.18.2"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
