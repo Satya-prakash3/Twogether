@@ -8,6 +8,10 @@ class Env(BaseSettings):
     mongo_uri: str
     redis_url: str
 
+    enable_elk_logging: bool = False
+    logstash_host: str = "localhost"
+    logstash_port: int = 5044
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
