@@ -1,19 +1,57 @@
-from fastapi import APIRouter
-from app.core.config import env
-from app.core.logging import get_logger
+import pytz
+from fastapi import status
+from datetime import datetime, timezone
+from typing import Generic, TypeVar, Optional
+from pydantic import BaseModel,field_serializer
 
-utils_router = APIRouter()
+from app.common.constants import Constants
 
 
+T = TypeVar("T")
 
-logger = get_logger("app.common.utils")
+class SuccessResponse(BaseModel, Generic[T]):
+    success: bool = True
+    message: str = "Operation Successful"
+    data: Optional[T] = None
 
-@utils_router.get("/health", tags=["Health"])
-async def health_check():
-    logger.info("Health check requested")
-    return {"status": "ok", "environment": env.app_env}
 
-@utils_router.get("/hello", tags=["Hello"])
-async def hello():
-    logger.info("Hello API called.", extra={"extra": {"service": "api", "user": "test_user"}})
-    return {"status":"Hello"}
+def success_response(
+    message: str = "Operation successful",
+    data: dict | list | None = None,
+    code: int = status.HTTP_200_OK
+) -> dict[str, any]:
+    """
+    Standard format for successful responses.
+    Example:
+        return success_response("User registered", {"id": user.id})
+    """
+    response = {
+        "success": True,
+        "message": message,
+    }
+    if data is not None:
+        response["data"] = data
+    # response["status_code"] = code
+    return response
+
+
+IST = pytz.timezone(Constants.TIME_ZONE)
+def utc_now() -> datetime:
+    """Always use UTC time."""
+    return datetime.now(timezone.utc)
+
+def to_ist(dt: datetime) -> datetime:
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=pytz.UTC)
+    return dt.astimezone(IST)
+
+
+class ISTTimeStampedResponse(BaseModel):
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+    @field_serializer("created_at", "updated_at", when_used="always")
+    def convert_to_ist(self, value: Optional[datetime], _info):
+        if value is None:
+            return None
+        return to_ist(value).strftime("%Y-%m-%d %H:%M:%S")

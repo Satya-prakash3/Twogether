@@ -2,6 +2,7 @@ import os
 from pydantic_settings import BaseSettings
 
 from app.common.constants import PathConstants
+from app.api.user.models import User
 
 class Env(BaseSettings):
     app_env:str
@@ -19,6 +20,9 @@ class Env(BaseSettings):
 
 class GlobalSettings():
     STATIC_DIR: str = os.path.join(PathConstants.APP_DIR, "static")
+    BEANIE_MODELS: list = [
+        User
+    ]
     
 
 

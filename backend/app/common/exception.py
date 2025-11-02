@@ -6,6 +6,21 @@ from app.core.logging import get_logger
 
 logger = get_logger("app.common.exception")
 
+
+def error_response(error: str, details: str = None) -> dict[str]:
+    if not details:
+        error_json = {
+            "success": False,
+            "errors": error
+        }
+    else:
+        error_json = {
+            "success": False,
+            "errors": error,
+            "details": details
+        }
+    return error_json
+     
 class BaseException(Exception):
     """Base exception for all custom application exceptions."""
     def __init__(self, message: str, status_code: int = status.HTTP_400_BAD_REQUEST, details: dict | None = None) -> str:
@@ -45,7 +60,7 @@ async def app_exception_handler(request: Request, exc: BaseException):
     )
     return JSONResponse(
         status_code=exc.status_code,
-        content={"error": exc.message, "details": exc.details},
+        content=error_response(exc.message, exc.details),
     )
 
 
@@ -57,7 +72,7 @@ async def http_exception_handler(request: Request, exc: HTTPException):
     )
     return JSONResponse(
         status_code=exc.status_code,
-        content={"error": exc.detail},
+        content=error_response(exc.detail),
     )
 
 
@@ -69,5 +84,26 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
     )
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        content={"error": "Internal server error"},
+        content=error_response("Internal server error"),
+    )
+
+async def validation_exception_handler(request: Request, exc: ValidationException):
+    errors = []
+    for err in exc.errors():
+        field = ".".join(str(x) for x in err["loc"] if isinstance(x, str))
+
+        if "value is not a valid email address" in err['msg']:
+            err['msg'] = "Invalid Email."
+            
+        errors.append({
+            "field": field,
+            "message": err["msg"]
+        })
+
+    return JSONResponse(
+        status_code=422,
+        content={
+            "success": False,
+            "errors": errors
+        }
     )
