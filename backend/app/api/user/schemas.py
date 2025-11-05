@@ -1,11 +1,13 @@
 import re
 from datetime import datetime
 from pydantic_core import PydanticCustomError
+from beanie import PydanticObjectId
 from pydantic import (
     EmailStr, 
     BaseModel, 
     Field,
-    field_validator
+    field_validator,
+    field_serializer
 )
 from typing import (
     Optional,
@@ -75,8 +77,13 @@ class UserResponse(ISTTimeStampedResponse):
 
 
 class UserView(ISTTimeStampedResponse):
-    _id: str
+    id: PydanticObjectId = Field(alias="_id")
     username: str
     email: EmailStr
-    created_at: datetime
-    updated_at: datetime
+    is_active: bool
+    # created_at: datetime
+    # updated_at: datetime
+
+    @field_serializer("id")
+    def serialize_id(self, v: PydanticObjectId, _info):
+        return str(v)
