@@ -13,8 +13,8 @@ from app.api.user.services import (
     get_users
 )
 from app.common.utils import (
-    success_response,
-    SuccessResponse
+    SuccessResponse,
+    SuccessResponseForData
 )
 
 
@@ -32,7 +32,7 @@ async def register(payload: UserRegister):
     )
     return SuccessResponse(message="Registration Successful.", data=user)
 
-@user_router.get("/allUsers", response_model=SuccessResponse[list], status_code=status.HTTP_200_OK)
+@user_router.get("/allUsers", response_model=SuccessResponseForData[list], status_code=status.HTTP_200_OK)
 async def get_all_users():
     user = await get_users()
-    return SuccessResponse(message="Successfully Fethed Data.", data=user)
+    return SuccessResponseForData(data=user)

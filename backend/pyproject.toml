@@ -19,6 +19,8 @@ python-logstash = "^0.4.8"
 beanie = "^2.0.0"
 pydantic = {extras = ["email"], version = "^2.12.3"}
 argon2-cffi = "^25.1.0"
+pyjwt = "^2.10.1"
+cryptography = "^46.0.3"
 
 
 [tool.poetry.group.dev.dependencies]

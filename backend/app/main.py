@@ -12,6 +12,10 @@ from fastapi.exceptions import (
 
 from app.db.beanie_init import initialize_beanie
 from app.common.constants import Constants
+from app.core.redis import (
+    connect_to_redis,
+    close_redis_connection
+)
 from app.common.exception import (
     InvalidEnvironmentError,
     BaseException,
@@ -31,6 +35,7 @@ from app.db.mongo import (
     connect_to_mongo,
     close_mongo_connection
 )
+
 from app.common.api import (
     common_api_router
 )
@@ -45,13 +50,12 @@ logger = get_logger("app.main")
 async def lifespan(app: FastAPI):
     await connect_to_mongo()
     await initialize_beanie()
-    logger.info("Beanie Initialized Successfully.")
-    logger.info("MongoDB Connected Successfully.")
+    await connect_to_redis()
     yield
 
     await close_mongo_connection()
-    logger.info("MongoDB Connection Closed successfully.")
-
+    await close_redis_connection()
+    
 if env.app_env not in ["developement", "production"]:
     logger.error("Invalid Environment provided")
     raise InvalidEnvironmentError("Kindly provide a valid project environment.")

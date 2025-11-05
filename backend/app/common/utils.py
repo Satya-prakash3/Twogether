@@ -34,6 +34,26 @@ def success_response(
     # response["status_code"] = code
     return response
 
+class SuccessResponseForData(BaseModel, Generic[T]):
+    success: bool = True
+    data: Optional[T] = None
+
+
+def success_response(
+    data: dict | list | None = None,
+    code: int = status.HTTP_200_OK
+) -> dict[str, any]:
+    """
+    Standard format for successful responses.
+    Example:
+        return success_response("User registered", {"id": user.id})
+    """
+    response = {
+        "success": True,
+        "data": data
+    }
+    return response
+
 
 IST = pytz.timezone(Constants.TIME_ZONE)
 def utc_now() -> datetime:
@@ -55,13 +75,13 @@ def to_ist(dt: datetime) -> datetime:
 #         if value is None:
 #             return None
 #         return to_ist(value).strftime("%Y-%m-%d %H:%M:%S")
+
 def to_ist(dt: datetime) -> datetime:
     """Convert UTC datetime to IST."""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=pytz.UTC)
     return dt.astimezone(pytz.timezone("Asia/Kolkata"))
 
-# 🔥 Universal IST serializer base
 class ISTTimeStampedResponse(BaseModel):
     """Base model that converts ALL datetime fields to IST when serializing."""
 
