@@ -59,11 +59,14 @@ _ALG = getattr(env, "jwt_algorithm", "EdDSA") or "EdDSA"
 _KID = getattr(env, "jwt_kid", "default") or "default"
 
 if not _PRIVATE_KEY:
-    logger.warning("No private key loaded — signing functions will fail until a private key is provided.")
+    logger.warning(
+        "No private key loaded — signing functions will fail until a private key is provided."
+    )
 
 if not _PUBLIC_KEY:
-    logger.warning("No public key loaded — token verification may fail until public key is available.")
-
+    logger.warning(
+        "No public key loaded — token verification may fail until public key is available."
+    )
 
 
 def _now() -> datetime:
@@ -81,6 +84,7 @@ def create_access_token(
     scopes: Optional[list[str]] = None,
     extra_claims: Optional[Dict[str, Any]] = None,
     token_version: Optional[int] = None,
+    role: str,
 ) -> str:
     """
     Create an EdDSA-signed access token.
@@ -94,7 +98,11 @@ def create_access_token(
         raise RuntimeError("JWT private key not loaded")
 
     now = _now()
-    exp = now + (expires_delta if expires_delta else timedelta(seconds=getattr(env, "access_token_expire_seconds", 900)))
+    exp = now + (
+        expires_delta
+        if expires_delta
+        else timedelta(seconds=getattr(env, "access_token_expire_seconds", 900))
+    )
     jti = new_jti()
 
     payload: Dict[str, Any] = {
@@ -104,6 +112,7 @@ def create_access_token(
         "exp": int(exp.timestamp()),
         "jti": jti,
         "typ": "access",
+        "role": role,
     }
 
     if scopes:
@@ -136,7 +145,11 @@ def create_refresh_token(
         raise RuntimeError("JWT private key not loaded")
 
     now = _now()
-    exp = now + (expires_delta if expires_delta else timedelta(seconds=getattr(env, "refresh_token_expire_seconds", 1209600)))
+    exp = now + (
+        expires_delta
+        if expires_delta
+        else timedelta(seconds=getattr(env, "refresh_token_expire_seconds", 1209600))
+    )
     jti = new_jti()
 
     payload: Dict[str, Any] = {
@@ -157,7 +170,6 @@ def create_refresh_token(
     return token
 
 
-
 def verify_token(token: str, expected_type: Optional[str] = None) -> Dict[str, Any]:
     """
     Verify signature and required claims. Returns payload dict.
@@ -165,21 +177,32 @@ def verify_token(token: str, expected_type: Optional[str] = None) -> Dict[str, A
     """
     if not _PUBLIC_KEY:
         logger.error("Public key not configured for JWT verification")
-        raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Public key not configured")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Public key not configured",
+        )
 
     try:
         options = {"require": ["exp", "iat", "nbf", "jti", "sub"]}
         payload = jwt.decode(token, _PUBLIC_KEY, algorithms=[_ALG], options=options)
     except jwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired"
+        )
     except jwt.InvalidSignatureError:
         logger.warning("JWT signature verification failed")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token signature")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token signature"
+        )
     except jwt.InvalidTokenError as e:
         logger.warning(f"Invalid token: {e}")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token"
+        )
 
     if expected_type and payload.get("typ") != expected_type:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type"
+        )
 
     return payload

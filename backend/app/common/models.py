@@ -1,7 +1,8 @@
+import uuid
 from beanie import Document
 from typing import Optional
 from datetime import datetime
-from pydantic import BaseModel, Field, field_serializer
+from pydantic import BaseModel, Field
 
 from app.common.utils import (
     utc_now,
@@ -10,6 +11,7 @@ from app.common.utils import (
 
 class CreationMixin(BaseModel):
     """Adds creation metadata (immutable after first save)."""
+
     created_by: Optional[str] = None
     created_at: Optional[datetime] = Field(default_factory=utc_now)
 
@@ -18,8 +20,10 @@ class CreationMixin(BaseModel):
         if not self.created_at:
             self.created_at = utc_now()
 
+
 class UpdationMixin(BaseModel):
     """Adds update metadata (changes every save)."""
+
     updated_by: Optional[str] = None
     updated_at: Optional[datetime] = None
 
@@ -38,16 +42,14 @@ class BaseTimeStampMixin(BaseModel):
         """Ensure created_at never changes once set."""
         if not self.created_at:
             self.created_at = datetime.now(utc_now())
-    
+
     async def touch(self):
         """Refresh updated_at."""
         self.updated_at = datetime.now(utc_now())
-    
-
-
 
 
 class BaseDocument(Document):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     """
     Root base for all Beanie documents.
     Detects and updates timestamp fields automatically.
@@ -75,9 +77,5 @@ class BaseDocument(Document):
 
         await super().save(*args, **kwargs)
 
-
     class Settings:
         pass
-
-    
-

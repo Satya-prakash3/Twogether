@@ -1,17 +1,26 @@
 import json
-import datetime
+import uuid
 from typing import Optional, Any
+from fastapi import HTTPException, status
+from beanie.odm.operators.find.logical import Or
+from datetime import datetime, timezone, timedelta
 
+
+from app.core.jwt import create_access_token, create_refresh_token, verify_token
+from app.core.config import env
+from app.api.user.models import User
 from app.core.redis import redis_client
 from app.core.logging import get_logger
+from app.common.services import BaseRepository
+from app.common.security import verify_password
 
 logger = get_logger("app.api.auth.service")
 
 SESSION_PREFIX = "session"
 BLACKLIST_PREFIX = "blacklist"
 
-REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60   
-BLACKLIST_TTL = 15 * 60          
+REFRESH_TOKEN_TTL = 30 * 24 * 60 * 60
+BLACKLIST_TTL = 15 * 60
 
 
 async def create_session(
@@ -19,7 +28,7 @@ async def create_session(
     jti: str,
     refresh_token: str,
     metadata: dict | None = None,
-    ttl: int = REFRESH_TOKEN_TTL
+    ttl: int = REFRESH_TOKEN_TTL,
 ) -> bool:
     """
     Create a new user session in Redis.
@@ -37,8 +46,8 @@ async def create_session(
     key = f"{SESSION_PREFIX}:{user_id}:{jti}"
     session_data = {
         "refresh_token": refresh_token,
-        "created_at": datetime.datetime.utcnow().isoformat(),
-        "expires_at": (datetime.datetime.utcnow() + datetime.timedelta(seconds=ttl)).isoformat(),
+        "created_at": datetime.utcnow().isoformat(),
+        "expires_at": (datetime.utcnow() + timedelta(seconds=ttl)).isoformat(),
         "metadata": metadata or {},
     }
     await redis_client.setex(key, ttl, json.dumps(session_data))
@@ -58,7 +67,7 @@ async def rotate_session(
     new_jti: str,
     new_refresh_token: str,
     metadata: dict | None = None,
-    ttl: int = REFRESH_TOKEN_TTL
+    ttl: int = REFRESH_TOKEN_TTL,
 ) -> bool:
     """
     Rotate (replace) a refresh session with a new JTI and token.
@@ -69,8 +78,8 @@ async def rotate_session(
     new_key = f"{SESSION_PREFIX}:{user_id}:{new_jti}"
     session_data = {
         "refresh_token": new_refresh_token,
-        "created_at": datetime.datetime.utcnow().isoformat(),
-        "expires_at": (datetime.datetime.utcnow() + datetime.timedelta(seconds=ttl)).isoformat(),
+        "created_at": datetime.utcnow().isoformat(),
+        "expires_at": (datetime.utcnow() + timedelta(seconds=ttl)).isoformat(),
         "metadata": metadata or {},
     }
     await redis_client.setex(new_key, ttl, json.dumps(session_data))
@@ -116,3 +125,78 @@ async def list_active_sessions(user_id: str) -> list[dict[str, Any]]:
         if data:
             sessions.append(json.loads(data))
     return sessions
+
+
+async def user_login(data: dict, metadata: dict | None = None) -> dict:
+    email = data.get("email", None)
+    password = data.get("password", None)
+    username = data.get("username", None)
+    user_repo = BaseRepository(User)
+    query = Or(User.email == email, User.username == username)
+    user = await user_repo.find_one(query)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Email or username is incorrect.",
+        )
+
+    if not verify_password(password=password, hashed=user.password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Entered password is incorrect.",
+        )
+
+    if user.is_superuser:
+        role = "admin"
+    else:
+        role = "user"
+
+    session_id = str(uuid.uuid4())
+
+    access_token = create_access_token(subject=str(user.id), token_version=1, role=role)
+    refresh_token = create_refresh_token(subject=str(user.id), session_id=session_id)
+
+    payload = verify_token(refresh_token, expected_type="refresh")
+    refresh_jti = payload.get("jti")
+    expiry_timestamp = payload.get("exp")
+    ttl = int(expiry_timestamp - int(datetime.now(timezone.utc).timestamp()))
+
+    await create_session(
+        user_id=str(user.id),
+        jti=refresh_jti,
+        refresh_token=refresh_token,
+        metadata=metadata or {},
+        ttl=ttl,
+    )
+
+    logger.info(
+        "User logged in",
+        extra={"extra": {"user_id": str(user.id), "session_id": session_id}},
+    )
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "session_id": session_id,
+        "access_expires_in": env.access_token_expire_seconds,
+        "refresh_expires_in": ttl,
+    }
+
+
+async def logout_current_session(presented_refresh_token: str) -> bool:
+    payload = verify_token(presented_refresh_token, expected_type="refresh")
+    jti = payload.get("jti")
+    user_id = payload.get("sub")
+    if not jti or not user_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid token"
+        )
+
+    await revoke_session(user_id, jti)
+
+    now_ts = int(datetime.now(timezone.utc).timestamp())
+    exp_ts = int(payload.get("exp", now_ts))
+    remaining = max(1, exp_ts - now_ts)
+    await blacklist_token(jti, ttl=remaining)
+
+    logger.info("Session logged out", extra={"extra": {"user_id": user_id, "jti": jti}})
+    return True

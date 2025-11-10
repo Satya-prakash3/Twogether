@@ -2,12 +2,13 @@ import pytz
 from fastapi import status
 from datetime import datetime, timezone
 from typing import Generic, TypeVar, Optional
-from pydantic import BaseModel,field_serializer
+from pydantic import BaseModel, field_serializer
 
 from app.common.constants import Constants
 
 
 T = TypeVar("T")
+
 
 class SuccessResponse(BaseModel, Generic[T]):
     success: bool = True
@@ -16,9 +17,9 @@ class SuccessResponse(BaseModel, Generic[T]):
 
 
 def success_response(
-    message: str = "Operation successful",
+    message: Optional[str] = None,
     data: dict | list | None = None,
-    code: int = status.HTTP_200_OK
+    status_code: int = status.HTTP_200_OK,
 ) -> dict[str, any]:
     """
     Standard format for successful responses.
@@ -34,31 +35,31 @@ def success_response(
     # response["status_code"] = code
     return response
 
-class SuccessResponseForData(BaseModel, Generic[T]):
-    success: bool = True
-    data: Optional[T] = None
+
+# class SuccessResponseForData(BaseModel, Generic[T]):
+#     success: bool = True
+#     data: Optional[T] = None
 
 
-def success_response(
-    data: dict | list | None = None,
-    code: int = status.HTTP_200_OK
-) -> dict[str, any]:
-    """
-    Standard format for successful responses.
-    Example:
-        return success_response("User registered", {"id": user.id})
-    """
-    response = {
-        "success": True,
-        "data": data
-    }
-    return response
+# def success_response(
+#     data: dict | list | None = None, code: int = status.HTTP_200_OK
+# ) -> dict[str, any]:
+#     """
+#     Standard format for successful responses.
+#     Example:
+#         return success_response("User registered", {"id": user.id})
+#     """
+#     response = {"success": True, "data": data}
+#     return response
 
 
 IST = pytz.timezone(Constants.TIME_ZONE)
+
+
 def utc_now() -> datetime:
     """Always use UTC time."""
     return datetime.now(timezone.utc)
+
 
 def to_ist(dt: datetime) -> datetime:
     if dt.tzinfo is None:
@@ -76,11 +77,13 @@ def to_ist(dt: datetime) -> datetime:
 #             return None
 #         return to_ist(value).strftime("%Y-%m-%d %H:%M:%S")
 
+
 def to_ist(dt: datetime) -> datetime:
     """Convert UTC datetime to IST."""
     if dt.tzinfo is None:
         dt = dt.replace(tzinfo=pytz.UTC)
     return dt.astimezone(pytz.timezone("Asia/Kolkata"))
+
 
 class ISTTimeStampedResponse(BaseModel):
     """Base model that converts ALL datetime fields to IST when serializing."""

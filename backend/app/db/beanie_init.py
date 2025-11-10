@@ -8,9 +8,5 @@ logger = get_logger("app.db.beanie")
 
 
 async def initialize_beanie():
-    await init_beanie(
-        database = mongo.db,
-        document_models = globalSettings.BEANIE_MODELS
-    )
+    await init_beanie(database=mongo.db, document_models=globalSettings.BEANIE_MODELS)
     logger.info("Beanie Initialized Successfully.")
-    

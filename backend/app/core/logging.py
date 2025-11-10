@@ -26,10 +26,27 @@ class JSONFormatter(logging.Formatter):
         # Include any custom fields passed via 'extra'
         for key, value in record.__dict__.items():
             if key not in (
-                'name', 'msg', 'args', 'levelname', 'levelno', 'pathname',
-                'filename', 'module', 'exc_info', 'exc_text', 'stack_info',
-                'lineno', 'funcName', 'created', 'msecs', 'relativeCreated',
-                'thread', 'threadName', 'processName', 'process', 'message'
+                "name",
+                "msg",
+                "args",
+                "levelname",
+                "levelno",
+                "pathname",
+                "filename",
+                "module",
+                "exc_info",
+                "exc_text",
+                "stack_info",
+                "lineno",
+                "funcName",
+                "created",
+                "msecs",
+                "relativeCreated",
+                "thread",
+                "threadName",
+                "processName",
+                "process",
+                "message",
             ):
                 log_obj[key] = value
 
@@ -41,7 +58,7 @@ def get_logger(name: str) -> logging.Logger:
 
     logger = logging.getLogger(name)
     if logger.handlers:
-        return logger 
+        return logger
 
     environment = env.app_env
     enable_elk = getattr(env, "enable_elk_logging", False)
@@ -54,7 +71,7 @@ def get_logger(name: str) -> logging.Logger:
     else:
         formatter = logging.Formatter(
             "%(asctime)s | %(levelname)s | %(name)s | %(message)s | %(pathname)s | %(lineno)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+            datefmt="%Y-%m-%d %H:%M:%S",
         )
         logger.setLevel(logging.DEBUG)
 
@@ -67,9 +84,9 @@ def get_logger(name: str) -> logging.Logger:
                 host=env.logstash_host,
                 port=int(env.logstash_port),
                 version=1,
-                message_type='fastapi_log',
+                message_type="fastapi_log",
                 fqdn=False,
-                tags=['fastapi', Constants.APP_NAME]
+                tags=["fastapi", Constants.APP_NAME],
             )
             logger.addHandler(logstash_handler)
             logger.info("✅ Logstash handler connected")
@@ -78,4 +95,3 @@ def get_logger(name: str) -> logging.Logger:
 
     logger.propagate = False
     return logger
-
