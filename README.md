@@ -22,12 +22,16 @@ Architecture: Client-Side Playback Sync (MVP Model)
 
 # 🛠️ Getting Started
 Clone the repository
+
 git clone https://github.com/yourusername/twogether.git
+
 cd twogether
 
 # Install backend dependencies
 cd backend
+
 poetry install
+
 poetry shell
 
 # Run the application
