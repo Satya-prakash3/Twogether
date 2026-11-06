@@ -1,18 +1,19 @@
 import json
 import uuid
+from sqlalchemy import or_
 from typing import Optional, Any
 from fastapi import HTTPException, status
-from beanie.odm.operators.find.logical import Or
 from datetime import datetime, timezone, timedelta
 
 
-from app.core.jwt import create_access_token, create_refresh_token, verify_token
 from app.core.config import env
 from app.api.user.models import User
-from app.core.redis import redis_client
 from app.core.logging import get_logger
-from app.common.services import BaseRepository
+from app.core.redis import redis_client
 from app.common.security import verify_password
+from app.db.postgres import get_postgres_session
+from app.common.services import BaseRepositorySQL
+from app.core.jwt import create_access_token, create_refresh_token, verify_token
 
 logger = get_logger("app.api.auth.service")
 
@@ -131,9 +132,11 @@ async def user_login(data: dict, metadata: dict | None = None) -> dict:
     email = data.get("email", None)
     password = data.get("password", None)
     username = data.get("username", None)
-    user_repo = BaseRepository(User)
-    query = Or(User.email == email, User.username == username)
-    user = await user_repo.find_one(query)
+    session = await get_postgres_session()
+    user_repo = BaseRepositorySQL(User)
+    query = (or_(User.email == email, User.username == username))
+    user = await user_repo.find_one(session=session, query=query)
+
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

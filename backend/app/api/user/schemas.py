@@ -1,8 +1,8 @@
 import re
+from typing import Optional
 from datetime import datetime
 from pydantic_core import PydanticCustomError
-from pydantic import EmailStr, BaseModel, Field, field_validator
-from typing import Optional
+from pydantic import EmailStr, BaseModel, Field, field_validator, ConfigDict
 
 from app.common.utils import ISTTimeStampedResponse
 
@@ -66,7 +66,9 @@ class UserResponse(ISTTimeStampedResponse):
 
 
 class UserView(ISTTimeStampedResponse):
-    id: str = Field(alias="_id")
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
     username: str
     email: EmailStr
     is_active: bool

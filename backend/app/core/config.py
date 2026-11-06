@@ -28,7 +28,9 @@ class Env(BaseSettings):
 
 class GlobalSettings:
     STATIC_DIR: str = os.path.join(PathConstants.APP_DIR, "static")
-    BEANIE_MODELS: list = []
+    BEANIE_MODELS: list = [
+        
+    ]
 
     def __str__(self):
         return "Sets global settings for application."

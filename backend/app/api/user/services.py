@@ -1,12 +1,13 @@
 from fastapi import status
+from sqlalchemy import or_
 from fastapi.exceptions import HTTPException
-from beanie.odm.operators.find.logical import Or
 
+from app.api.user.models import User
 from app.core.logging import get_logger
 from app.common.security import make_password
-from app.api.user.models import User
+from app.db.postgres import get_postgres_session
+from app.common.services import BaseRepositorySQL
 from app.api.user.schemas import UserRegister, UserView
-from app.common.services import BaseRepository
 
 logger = get_logger("app.api.user.services")
 
@@ -16,9 +17,10 @@ async def register_user(data: UserRegister) -> any:
     username = data.get("username")
     password = data.get("password")
     admin = data.get("admin", None)
-    or_query = Or(User.email == email, User.username == username)
-    user_repo = BaseRepository(User)
-    existing_user = await user_repo.find_one(or_query)
+    session = await get_postgres_session()
+    or_query = (or_(User.email == email, User.username == username))
+    user_repo = BaseRepositorySQL(User)
+    existing_user = await user_repo.find_one(session=session, query=or_query)
     if existing_user:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -34,13 +36,15 @@ async def register_user(data: UserRegister) -> any:
     }
     if admin:
         final_payload["is_superuser"] = True
-    user = await user_repo.save(User(**final_payload))
+    user = await user_repo.save(session=session, instance=User(**final_payload))
     logger.info("Registration Successful")
     return user
 
 
 async def get_users() -> dict[any]:
-    user_repo = BaseRepository(User)
-    users = await user_repo.find_all(fields=UserView)
+    session = await get_postgres_session()
+    user_repo = BaseRepositorySQL(User)
+    users = await user_repo.find_all(session=session, query=None)
+    print(users)
     logger.info("User Fetched Successfully")
     return users
