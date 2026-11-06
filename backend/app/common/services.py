@@ -1,12 +1,14 @@
 # app/db/base_repository.py
 from beanie import Document
 from pydantic import BaseModel
-from typing import Type, TypeVar, Generic, Optional
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, update as sa_update
+from typing import Type, TypeVar, Generic, Optional, List
 
 T = TypeVar("T", bound=Document)
 
 
-class BaseRepository(Generic[T]):
+class BaseRepositorySQLMongo(Generic[T]):
     def __init__(self, model: Type[T]):
         self.model = model
 
@@ -32,3 +34,69 @@ class BaseRepository(Generic[T]):
 
         await document.save()
         return document
+
+
+
+class BaseRepositorySQL(Generic[T]):
+    def __init__(self, model: Type[T]):
+        self.model = model
+
+    async def save(self, session: AsyncSession, instance: T) -> T:
+        """Insert or update a model instance."""
+        session.add(instance)
+        await session.flush()
+        await session.commit()
+        return instance
+
+    async def find_one(self, session: AsyncSession, query) -> Optional[T]:
+        """Find a single record using a SQLAlchemy expression."""
+        stmt = select(self.model).where(query)
+        result = await session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def find_all(
+        self,
+        session: AsyncSession,
+        query=None,
+    ) -> List[T]:
+        """Find all records matching a query."""
+        if query is not None:
+            stmt = select(self.model).where(query)
+        else:
+            stmt = select(self.model)
+
+        result = await session.execute(stmt)
+        return result.scalars().all()
+
+    async def update(
+        self,
+        session: AsyncSession,
+        instance: T,
+        update_data: dict,
+    ) -> T:
+        """Update fields on an instance."""
+        for key, value in update_data.items():
+            setattr(instance, key, value)
+
+        session.add(instance)
+        await session.flush()
+        await session.commit()
+        return instance
+
+    async def update_where(
+        self,
+        session: AsyncSession,
+        query,
+        update_data: dict,
+    ) -> None:
+        """
+        Optional:
+        Perform a bulk update without loading objects into memory.
+        """
+        stmt = (
+            sa_update(self.model)
+            .where(query)
+            .values(**update_data)
+            .execution_options(synchronize_session="fetch")
+        )
+        await session.execute(stmt)

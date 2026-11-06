@@ -53,7 +53,7 @@ async def close_postgres_connection() -> None:
     logger.info("PostgreSQL Connection Closed successfully.")
 
 
-async def get_session() -> AsyncSession:
+async def get_postgres_session() -> AsyncSession:
     """
     Dependency injection helper for routes & services.
     Example use:
